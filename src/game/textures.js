@@ -1,9 +1,11 @@
 // Pictures for Troy, drawn with rectangles. No image files for the scenery.
-// Each prop is one small canvas. TroyScene turns them into Phaser textures.
-// Colors are moonlight: dark ground, pale stone, warm fire.
+// Ground tiles are warm and light. TroyScene lays a cool blue multiply over
+// them so the night reads as moonlight, not as black paint.
 
 import Phaser from 'phaser';
 import { FEET, T } from './map.js';
+import { TEAMS, paintWarriorSheet } from './warriorArt.js';
+import { WARRIOR_CONFIG } from './warriorConfig.js';
 
 function makeCanvas(w, h) {
   const canvas = document.createElement('canvas');
@@ -19,111 +21,130 @@ function fill(ctx, x, y, w, h, color) {
   ctx.fillRect(x | 0, y | 0, w | 0, h | 0);
 }
 
-function paintPlaza(ctx, x, y, alt) {
-  fill(ctx, x, y, 16, 16, alt ? '#1a1612' : '#221c16');
-  fill(ctx, x + 1, y + 1, 6, 6, alt ? '#322c24' : '#3a3228');
-  fill(ctx, x + 8, y + 2, 7, 5, '#2a241c');
-  fill(ctx, x + 2, y + 9, 5, 5, alt ? '#3e3428' : '#2e2820');
-  fill(ctx, x + 9, y + 9, 6, 6, '#261f18');
-  fill(ctx, x + (alt ? 10 : 3), y + (alt ? 4 : 12), 2, 2, '#4a4034');
+function paintEarth(ctx, x, y, alt) {
+  fill(ctx, x, y, 16, 16, '#ead8b4');
+  fill(ctx, x + (alt ? 1 : 8), y + (alt ? 8 : 1), 7, 6, alt ? '#f6e6c6' : '#e2cca0');
+  fill(ctx, x + (alt ? 9 : 2), y + (alt ? 2 : 10), 4, 3, '#d4c096');
 }
 
 function paintSand(ctx, x, y, alt) {
-  // Warm and lighter than the city, so the beach reads at a glance.
-  fill(ctx, x, y, 16, 16, alt ? '#c4a36a' : '#b89558');
-  fill(ctx, x + 2, y + 3, 2, 2, '#ddc48a');
-  fill(ctx, x + 10, y + 8, 3, 2, '#8d7040');
-  fill(ctx, x + (alt ? 5 : 12), y + (alt ? 11 : 2), 2, 1, '#efe0b8');
-  fill(ctx, x + 7, y + 6, 1, 1, '#6e542c');
+  fill(ctx, x, y, 16, 16, alt ? '#f3e2b4' : '#f6e6c0');
+  fill(ctx, x + (alt ? 4 : 11), y + (alt ? 10 : 4), 3, 2, '#e2c98a');
 }
 
 function paintWet(ctx, x, y) {
-  fill(ctx, x, y, 16, 16, '#2c3a3a');
-  fill(ctx, x, y + 11, 16, 5, '#1a3038');
-  fill(ctx, x + 2, y + 4, 5, 2, '#6e8c8a');
-  fill(ctx, x + 9, y + 8, 4, 1, '#8eb0a4');
+  fill(ctx, x, y, 16, 16, '#d5c8a4');
+  fill(ctx, x, y + 10, 16, 6, '#b7c4c0');
+  fill(ctx, x + 2, y + 11, 5, 1, '#eef6f4');
 }
 
 function paintWater(ctx, x, y, deep) {
-  fill(ctx, x, y, 16, 16, deep ? '#061828' : '#0a3050');
-  fill(ctx, x, y + 6, 16, 3, deep ? '#082038' : '#12486e');
-  if (!deep) {
-    fill(ctx, x + 1, y + 6, 5, 1, '#c5e4ef');
-    fill(ctx, x + 10, y + 7, 4, 1, '#7eb6d0');
-  } else {
-    fill(ctx, x + 4, y + 10, 6, 1, '#16344e');
-  }
+  fill(ctx, x, y, 16, 16, deep ? '#163a58' : '#1e5678');
+  fill(ctx, x, y + 6, 16, 2, deep ? '#1c4868' : '#2f6e94');
+  if (!deep) fill(ctx, x + 2, y + 6, 5, 1, '#d5eef4');
 }
 
 function paintRoad(ctx, x, y) {
-  fill(ctx, x, y, 16, 16, '#2a261f');
-  fill(ctx, x + 1, y + 1, 6, 6, '#5a5146');
-  fill(ctx, x + 8, y + 2, 7, 5, '#4a4338');
-  fill(ctx, x + 2, y + 9, 6, 6, '#524a3e');
-  fill(ctx, x + 9, y + 8, 6, 7, '#3e382e');
-  fill(ctx, x + 2, y + 2, 4, 1, '#8a7d68');
+  // Long slabs that run to the tile edge, so the road is not a stack of squares.
+  fill(ctx, x, y, 16, 16, '#e7d5b2');
+  fill(ctx, x, y, 16, 7, '#f6e7c8');
+  fill(ctx, x, y + 8, 16, 8, '#f3e0b8');
+  fill(ctx, x + 3, y + 7, 4, 1, '#d9c49a');
+  fill(ctx, x + 11, y, 1, 4, '#d9c49a');
+}
+
+function paintRoadSide(ctx, x, y) {
+  paintSand(ctx, x, y, false);
+  fill(ctx, x + 2, y + 3, 6, 4, '#f0e0c0');
+  fill(ctx, x + 9, y + 9, 5, 4, '#e7d4ae');
+}
+
+function paintPave(ctx, x, y, alt) {
+  // Dark joints stay visible under the moonlight, so each tile reads as
+  // several small stones instead of one big square.
+  fill(ctx, x, y, 16, 16, '#8f7b60');
+  if (!alt) {
+    fill(ctx, x, y, 7, 6, '#f4e6ce');
+    fill(ctx, x + 8, y, 8, 7, '#e4d0aa');
+    fill(ctx, x, y + 7, 8, 9, '#f7ead4');
+    fill(ctx, x + 9, y + 8, 7, 8, '#dcc49a');
+  } else {
+    fill(ctx, x, y, 5, 9, '#f6ead6');
+    fill(ctx, x + 6, y, 10, 5, '#e8d2ae');
+    fill(ctx, x + 6, y + 6, 10, 10, '#f0dcb8');
+    fill(ctx, x, y + 10, 5, 6, '#d8c096');
+  }
 }
 
 function paintWall(ctx, x, y) {
-  fill(ctx, x, y, 16, 16, '#242220');
-  fill(ctx, x + 1, y + 1, 6, 6, '#7a7468');
-  fill(ctx, x + 8, y + 1, 7, 6, '#6a645a');
-  fill(ctx, x + 1, y + 8, 7, 7, '#5e584e');
-  fill(ctx, x + 9, y + 8, 6, 7, '#706a60');
-  fill(ctx, x + 1, y + 1, 6, 1, '#c8c0b0');
-  fill(ctx, x + 8, y + 1, 7, 1, '#b0a898');
+  fill(ctx, x, y, 16, 16, '#c9bfae');
+  fill(ctx, x + 1, y + 1, 6, 6, '#f0e8d8');
+  fill(ctx, x + 8, y + 1, 7, 6, '#e4d9c6');
+  fill(ctx, x + 1, y + 8, 7, 7, '#ddd2be');
+  fill(ctx, x + 9, y + 8, 6, 7, '#e8decc');
+  fill(ctx, x + 1, y + 1, 6, 1, '#faf6ee');
+  fill(ctx, x + 8, y + 1, 7, 1, '#f7f1e6');
 }
 
 function paintBattlement(ctx, x, y) {
   paintWall(ctx, x, y);
-  // Notches along the north edge, so the wall reads as battlements.
-  fill(ctx, x, y, 4, 5, '#100e0c');
-  fill(ctx, x + 8, y, 4, 5, '#100e0c');
-  fill(ctx, x + 4, y, 4, 3, '#8e887c');
-  fill(ctx, x + 12, y, 4, 3, '#8e887c');
+  // Notches. Cool shadow, not a black hole.
+  fill(ctx, x, y, 4, 5, '#8ea0b4');
+  fill(ctx, x + 8, y, 4, 5, '#8ea0b4');
+  fill(ctx, x + 4, y, 4, 3, '#f4ecde');
+  fill(ctx, x + 12, y, 4, 3, '#f4ecde');
 }
 
 function paintWallFace(ctx, x, y) {
-  fill(ctx, x, y, 16, 16, '#3a3630');
-  fill(ctx, x, y, 16, 5, '#6a6458');
-  fill(ctx, x, y, 16, 2, '#b7b0a2');
-  fill(ctx, x + 2, y + 6, 5, 4, '#4a453e');
-  fill(ctx, x + 9, y + 6, 5, 4, '#524c44');
-  fill(ctx, x, y + 12, 16, 4, '#12100e');
+  fill(ctx, x, y, 16, 16, '#d9cfc0');
+  fill(ctx, x, y, 16, 4, '#f3ebdd');
+  fill(ctx, x, y, 16, 1, '#faf6ee');
+  fill(ctx, x, y + 12, 16, 4, '#a89880');
 }
 
 function paintRock(ctx, x, y) {
-  fill(ctx, x, y, 16, 16, '#141210');
-  fill(ctx, x + 2, y + 5, 12, 9, '#4a453e');
-  fill(ctx, x + 4, y + 2, 8, 7, '#6a645c');
-  fill(ctx, x + 5, y + 3, 3, 2, '#a8a090');
-  fill(ctx, x + 3, y + 10, 4, 2, '#2e2a26');
+  // Broken limestone, same family as the wall, so the edge is not a gray blob.
+  fill(ctx, x, y, 16, 16, '#e6d7b8');
+  fill(ctx, x + 2, y + 5, 11, 8, '#f4ead4');
+  fill(ctx, x + 4, y + 2, 7, 5, '#faf4e8');
+  fill(ctx, x + 3, y + 10, 5, 3, '#cbb898');
+  fill(ctx, x + 10, y + 8, 4, 4, '#d9c8a8');
 }
 
-function paintRubbleTile(ctx, x, y) {
-  paintPlaza(ctx, x, y, false);
-  fill(ctx, x + 2, y + 3, 4, 3, '#6a5a44');
-  fill(ctx, x + 8, y + 9, 5, 3, '#4a4034');
-  fill(ctx, x + 6, y + 5, 2, 2, '#2a241c');
+function paintPebble(ctx, x, y) {
+  paintEarth(ctx, x, y, false);
+  fill(ctx, x + 4, y + 6, 3, 2, '#b7a488');
+  fill(ctx, x + 10, y + 10, 2, 2, '#c4b496');
+}
+
+function paintWeed(ctx, x, y) {
+  paintEarth(ctx, x, y, true);
+  fill(ctx, x + 4, y + 8, 2, 5, '#7d8a58');
+  fill(ctx, x + 7, y + 6, 2, 6, '#9aaa6a');
+  fill(ctx, x + 10, y + 9, 2, 4, '#6e7c4c');
 }
 
 function paintTileset() {
   const max = Math.max(...Object.values(T));
   const { canvas, ctx } = makeCanvas((max + 1) * 16, 16);
   const painters = [];
-  painters[T.plaza] = (c, x, y) => paintPlaza(c, x, y, false);
-  painters[T.plazaAlt] = (c, x, y) => paintPlaza(c, x, y, true);
+  painters[T.earth] = (c, x, y) => paintEarth(c, x, y, false);
+  painters[T.earthAlt] = (c, x, y) => paintEarth(c, x, y, true);
   painters[T.sand] = (c, x, y) => paintSand(c, x, y, false);
   painters[T.sandAlt] = (c, x, y) => paintSand(c, x, y, true);
   painters[T.wet] = paintWet;
   painters[T.water] = (c, x, y) => paintWater(c, x, y, false);
   painters[T.waterDeep] = (c, x, y) => paintWater(c, x, y, true);
   painters[T.road] = paintRoad;
+  painters[T.roadSide] = paintRoadSide;
   painters[T.wall] = paintWall;
   painters[T.battlement] = paintBattlement;
   painters[T.wallFace] = paintWallFace;
   painters[T.rock] = paintRock;
-  painters[T.rubble] = paintRubbleTile;
+  painters[T.pebble] = paintPebble;
+  painters[T.pave] = (c, x, y) => paintPave(c, x, y, false);
+  painters[T.paveAlt] = (c, x, y) => paintPave(c, x, y, true);
+  painters[T.weed] = paintWeed;
   for (let i = 0; i <= max; i += 1) {
     if (!painters[i]) throw new Error(`Missing painter for tile ${i}`);
     painters[i](ctx, i * 16, 0);
@@ -132,79 +153,123 @@ function paintTileset() {
 }
 
 function paintHorse() {
-  // High top-down. Head and ears point into the city. Tail and wheels
-  // face the beach, so the silhouette is a horse and not a cart.
-  const { canvas, ctx } = makeCanvas(64, 88);
-  const plank = '#c4894a';
-  const light = '#f0d090';
-  const dark = '#5a3818';
-  const line = '#1c1008';
+  // High top-down, facing north. Ellipses, not boxes: a tapered muzzle,
+  // a round skull, a curving neck, and a barrel of shaded planks.
+  const { canvas, ctx } = makeCanvas(96, 108);
+  const wood = '#c4894a';
+  const light = '#f6ddb0';
+  const shade = '#6e4322';
+  const dark = '#3a2412';
+  const line = '#1a0e08';
 
-  // Tail, south end, between the wheels.
-  fill(ctx, 28, 70, 8, 14, line);
-  fill(ctx, 30, 68, 4, 16, dark);
+  function oval(cx, cy, rx, ry, color) {
+    for (let y = Math.ceil(-ry); y <= ry; y += 1) {
+      const inside = 1 - (y * y) / (ry * ry);
+      if (inside <= 0) continue;
+      const half = Math.max(1, Math.round(rx * Math.sqrt(inside)));
+      fill(ctx, Math.round(cx - half), Math.round(cy + y), half * 2, 1, color);
+    }
+  }
 
-  // Wheels.
-  fill(ctx, 1, 68, 16, 16, line);
-  fill(ctx, 3, 70, 12, 12, '#7a6248');
-  fill(ctx, 6, 73, 6, 6, light);
-  fill(ctx, 47, 68, 16, 16, line);
-  fill(ctx, 49, 70, 12, 12, '#7a6248');
-  fill(ctx, 52, 73, 6, 6, light);
+  // Wheeled platform. Left planks are lit, right planks sit in shadow.
+  fill(ctx, 10, 94, 76, 10, line);
+  fill(ctx, 12, 96, 72, 6, '#c49258');
+  fill(ctx, 12, 96, 18, 6, light);
+  fill(ctx, 62, 96, 22, 6, shade);
+  for (let i = 0; i < 3; i += 1) fill(ctx, 14, 97 + i * 2, 68, 1, i % 2 ? dark : '#e7c48a');
+  for (const wx of [8, 26, 60, 78]) {
+    fill(ctx, wx, 96, 11, 11, line);
+    fill(ctx, wx + 2, 98, 7, 7, '#4a3424');
+    fill(ctx, wx + 4, 100, 3, 3, light);
+  }
 
-  // Four legs.
-  fill(ctx, 14, 58, 6, 18, dark);
-  fill(ctx, 44, 58, 6, 18, dark);
-  fill(ctx, 22, 60, 5, 14, plank);
-  fill(ctx, 37, 60, 5, 14, plank);
+  for (const lx of [22, 36, 54, 68]) {
+    fill(ctx, lx, 78, 7, 20, line);
+    fill(ctx, lx + 1, 79, 5, 16, dark);
+    fill(ctx, lx + 1, 79, 2, 16, shade);
+    fill(ctx, lx, 94, 7, 3, line);
+  }
 
-  // Barrel of the body. Narrower at the rump.
-  fill(ctx, 8, 34, 48, 30, line);
-  fill(ctx, 10, 36, 44, 26, plank);
-  fill(ctx, 10, 36, 44, 4, light);
-  for (let i = 0; i < 4; i += 1) fill(ctx, 12, 42 + i * 5, 40, 1, dark);
+  // Tail curves off the rump so the rear is not a flat cut.
+  oval(18, 78, 5, 10, line);
+  oval(16, 80, 3, 8, dark);
+  fill(ctx, 14, 70, 6, 8, line);
 
-  // The door the warriors climbed out of.
-  fill(ctx, 24, 46, 16, 12, line);
-  fill(ctx, 26, 48, 12, 8, '#2a1a0e');
-  fill(ctx, 30, 50, 4, 4, '#f0d48a');
+  // Barrel. Each row is a chord, and every few rows is a darker plank seam.
+  const bx = 48;
+  const by = 68;
+  const brx = 32;
+  const bry = 16;
+  for (let y = Math.ceil(-bry); y <= bry; y += 1) {
+    const inside = 1 - (y * y) / (bry * bry);
+    if (inside <= 0) continue;
+    const half = Math.max(1, Math.round(brx * Math.sqrt(inside)));
+    const row = by + y;
+    fill(ctx, bx - half, row, half * 2, 1, line);
+    const inner = Math.max(1, half - 1);
+    const seam = row % 5 === 0;
+    fill(ctx, bx - inner, row, inner * 2, 1, seam ? dark : wood);
+    if (!seam) {
+      fill(ctx, bx - inner, row, 7, 1, light);
+      fill(ctx, bx + inner - 9, row, 9, 1, shade);
+    }
+  }
+  // Hatch, sitting on the lit face of the barrel.
+  fill(ctx, 40, 62, 12, 12, line);
+  fill(ctx, 42, 64, 8, 8, '#24140c');
+  fill(ctx, 45, 67, 3, 3, '#e8c878');
 
-  // Neck.
-  fill(ctx, 22, 22, 20, 16, line);
-  fill(ctx, 24, 24, 16, 14, plank);
-  fill(ctx, 22, 26, 4, 10, '#8c3030');
+  // Neck widens toward the chest. The mane is the dark ridge on the left.
+  for (let y = 30; y <= 52; y += 1) {
+    const t = (y - 30) / 22;
+    const half = 7 + Math.round(t * 8);
+    fill(ctx, 48 - half - 1, y, half * 2 + 2, 1, line);
+    fill(ctx, 48 - half, y, half * 2, 1, wood);
+    fill(ctx, 48 + half - 5, y, 5, 1, shade);
+    fill(ctx, 48 - half - 6, y, 7, 1, y % 3 === 0 ? line : dark);
+  }
 
-  // Head, long face, ears, a dark eye, and a pale muzzle.
-  fill(ctx, 20, 8, 24, 18, line);
-  fill(ctx, 22, 10, 20, 14, plank);
-  fill(ctx, 24, 0, 4, 12, dark);
-  fill(ctx, 36, 0, 4, 12, dark);
-  fill(ctx, 26, 2, 12, 8, light);
-  fill(ctx, 28, 12, 3, 3, line);
-  fill(ctx, 38, 14, 8, 6, '#f3e0b0');
+  // Ears first, so they are the top of the silhouette, then the skull and muzzle.
+  oval(34, 14, 3, 9, line);
+  oval(34, 15, 2, 7, dark);
+  oval(62, 14, 3, 9, line);
+  oval(62, 15, 2, 7, dark);
+  oval(48, 24, 15, 11, line);
+  oval(48, 24, 13, 9, wood);
+  oval(54, 25, 7, 7, shade);
+  oval(40, 22, 5, 5, light);
+  oval(48, 10, 7, 9, line);
+  oval(48, 11, 5, 7, light);
+  oval(51, 11, 3, 6, wood);
+  fill(ctx, 45, 6, 6, 2, '#f8e6c4');
+  fill(ctx, 45, 14, 8, 2, dark);
+  fill(ctx, 56, 22, 4, 3, line);
+  fill(ctx, 57, 23, 2, 1, '#f4e6c0');
   return canvas;
 }
 
 function paintTemple() {
   const { canvas, ctx } = makeCanvas(104, 80);
-  fill(ctx, 6, 54, 92, 18, '#6a6458');
-  fill(ctx, 0, 66, 104, 10, '#524c44');
-  fill(ctx, 0, 74, 104, 6, '#1a1814');
-  fill(ctx, 6, 54, 92, 3, '#d5cbb8');
+  // Steps, lit from the upper left. The shadow sits on the south edge.
+  fill(ctx, 0, 68, 104, 12, '#c4b8a4');
+  fill(ctx, 6, 56, 92, 16, '#e4d8c4');
+  fill(ctx, 6, 56, 92, 2, '#faf4ea');
+  fill(ctx, 0, 76, 104, 4, '#8f8372');
   for (let i = 0; i < 5; i += 1) {
     const x = 16 + i * 16;
-    fill(ctx, x, 28, 8, 30, '#e4dccb');
-    fill(ctx, x - 2, 24, 12, 5, '#f4efe4');
-    fill(ctx, x - 2, 54, 12, 4, '#c8bfae');
-    fill(ctx, x + 2, 30, 2, 24, '#fffaf0');
+    fill(ctx, x + 6, 30, 3, 28, '#b7aa96');
+    fill(ctx, x, 30, 8, 28, '#f4efe4');
+    fill(ctx, x, 30, 2, 28, '#fffaf2');
+    fill(ctx, x - 2, 26, 12, 5, '#faf6ee');
+    fill(ctx, x - 2, 54, 12, 4, '#d5cbb8');
   }
-  fill(ctx, 12, 20, 80, 10, '#8c3a2a');
-  fill(ctx, 24, 12, 56, 10, '#a84834');
-  fill(ctx, 36, 4, 32, 10, '#c45a3c');
-  fill(ctx, 46, 0, 12, 6, '#e6c27a');
-  fill(ctx, 46, 36, 14, 22, '#140e0c');
-  fill(ctx, 49, 40, 8, 12, '#ff9a3c');
-  fill(ctx, 51, 44, 4, 6, '#fff1c2');
+  fill(ctx, 14, 18, 76, 12, '#a84838');
+  fill(ctx, 26, 10, 52, 10, '#c45a42');
+  fill(ctx, 40, 4, 24, 8, '#d47858');
+  fill(ctx, 46, 0, 12, 5, '#e6c27a');
+  // Dark doorway and one small lamp, not a fire.
+  fill(ctx, 46, 36, 12, 20, '#2a241c');
+  fill(ctx, 50, 44, 4, 6, '#e8b060');
   return canvas;
 }
 
@@ -219,44 +284,44 @@ function paintHouse(roof, roofHi) {
   for (let i = 0; i < 3; i += 1) fill(ctx, 6, 16 + i * 7, 48, 1, 'rgba(0,0,0,0.35)');
   fill(ctx, 24, 44, 12, 18, '#1a120e');
   fill(ctx, 26, 50, 8, 10, '#2a1c14');
-  fill(ctx, 8, 40, 10, 8, '#ffb15a');
-  fill(ctx, 10, 42, 6, 4, '#fff1c2');
+  fill(ctx, 8, 40, 10, 8, '#243040');
   fill(ctx, 42, 40, 8, 8, '#1c2830');
   return canvas;
 }
 
 function paintColumn() {
   const { canvas, ctx } = makeCanvas(16, 48);
-  fill(ctx, 1, 40, 14, 8, '#b7aa96');
-  fill(ctx, 0, 44, 16, 4, '#8e8474');
-  fill(ctx, 3, 8, 10, 34, '#e6dfd2');
-  fill(ctx, 5, 10, 2, 28, '#fffaf2');
-  fill(ctx, 1, 4, 14, 6, '#f4efe4');
-  fill(ctx, 3, 0, 10, 5, '#d8c89a');
+  fill(ctx, 1, 40, 14, 8, '#d5cbb8');
+  fill(ctx, 0, 44, 16, 4, '#a89880');
+  fill(ctx, 11, 8, 3, 34, '#b7aa96');
+  fill(ctx, 3, 8, 8, 34, '#f4efe4');
+  fill(ctx, 3, 8, 2, 34, '#fffaf2');
+  fill(ctx, 1, 4, 14, 6, '#faf6ee');
+  fill(ctx, 1, 4, 4, 6, '#fffdf8');
+  fill(ctx, 3, 0, 10, 5, '#e6d7b0');
   return canvas;
 }
 
 function paintRubble() {
   const { canvas, ctx } = makeCanvas(34, 24);
-  fill(ctx, 2, 12, 10, 8, '#5a5148');
-  fill(ctx, 10, 8, 14, 12, '#7a7064');
-  fill(ctx, 20, 14, 12, 8, '#4a433c');
-  fill(ctx, 12, 6, 8, 4, '#a39888');
-  fill(ctx, 6, 16, 4, 3, '#2e2a26');
-  fill(ctx, 16, 18, 6, 3, '#2e2a26');
+  fill(ctx, 2, 12, 10, 8, '#d9c8a8');
+  fill(ctx, 10, 8, 14, 12, '#f0e4cc');
+  fill(ctx, 20, 14, 12, 8, '#cbb898');
+  fill(ctx, 12, 6, 8, 4, '#faf4e8');
+  fill(ctx, 6, 16, 4, 3, '#a89070');
+  fill(ctx, 16, 18, 6, 3, '#b8a488');
   return canvas;
 }
 
 function paintBrazier() {
+  // Empty bowl. The city is not burning.
   const { canvas, ctx } = makeCanvas(16, 24);
-  fill(ctx, 2, 14, 2, 10, '#3a342c');
-  fill(ctx, 12, 14, 2, 10, '#3a342c');
-  fill(ctx, 7, 16, 2, 8, '#3a342c');
-  fill(ctx, 2, 12, 12, 5, '#5a4030');
-  fill(ctx, 3, 10, 10, 4, '#2a2118');
-  fill(ctx, 5, 4, 6, 8, '#ff7a2a');
-  fill(ctx, 6, 1, 4, 6, '#ffd27a');
-  fill(ctx, 7, 0, 2, 3, '#fff6d0');
+  fill(ctx, 2, 14, 2, 10, '#6a5840');
+  fill(ctx, 12, 14, 2, 10, '#6a5840');
+  fill(ctx, 7, 16, 2, 8, '#6a5840');
+  fill(ctx, 2, 12, 12, 5, '#a08058');
+  fill(ctx, 3, 10, 10, 4, '#4a3c2c');
+  fill(ctx, 5, 11, 6, 2, '#c4a878');
   return canvas;
 }
 
@@ -273,17 +338,30 @@ function paintCypress() {
 
 function paintTower() {
   const { canvas, ctx } = makeCanvas(32, 56);
-  fill(ctx, 4, 10, 24, 42, '#6a6458');
-  fill(ctx, 2, 46, 28, 10, '#3e3a34');
-  fill(ctx, 2, 52, 28, 4, '#12100e');
-  fill(ctx, 4, 10, 24, 3, '#c8c0b0');
-  fill(ctx, 2, 4, 8, 8, '#7a7468');
-  fill(ctx, 14, 2, 6, 10, '#8a8478');
-  fill(ctx, 22, 4, 8, 8, '#7a7468');
-  fill(ctx, 6, 0, 6, 4, '#12100e');
-  fill(ctx, 20, 0, 6, 4, '#12100e');
-  fill(ctx, 13, 28, 6, 8, '#ffb15a');
-  fill(ctx, 15, 30, 2, 4, '#fff1c2');
+  fill(ctx, 4, 10, 24, 42, '#e4d9c6');
+  fill(ctx, 20, 10, 8, 42, '#c9bfae');
+  fill(ctx, 4, 10, 4, 42, '#faf6ee');
+  fill(ctx, 2, 46, 28, 8, '#d5cbb8');
+  fill(ctx, 2, 52, 28, 4, '#8f8372');
+  fill(ctx, 2, 4, 8, 8, '#f4ecde');
+  fill(ctx, 14, 2, 6, 10, '#efe6d4');
+  fill(ctx, 22, 4, 8, 8, '#e4d9c6');
+  fill(ctx, 6, 0, 6, 4, '#8ea0b4');
+  fill(ctx, 20, 0, 6, 4, '#8ea0b4');
+  // A small lamp in the tower, not a blaze.
+  fill(ctx, 14, 30, 4, 5, '#e8c080');
+  return canvas;
+}
+
+function paintLampGlow() {
+  const { canvas, ctx } = makeCanvas(160, 160);
+  const g = ctx.createRadialGradient(80, 80, 4, 80, 80, 78);
+  g.addColorStop(0, 'rgba(255, 214, 140, 0.9)');
+  g.addColorStop(0.25, 'rgba(255, 170, 80, 0.45)');
+  g.addColorStop(0.6, 'rgba(255, 140, 60, 0.12)');
+  g.addColorStop(1, 'rgba(255, 120, 40, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 160, 160);
   return canvas;
 }
 
@@ -291,7 +369,8 @@ function paintVignette() {
   const { canvas, ctx } = makeCanvas(256, 256);
   const g = ctx.createRadialGradient(128, 128, 80, 128, 128, 150);
   g.addColorStop(0, 'rgba(0,0,0,0)');
-  g.addColorStop(1, 'rgba(0,0,0,0.72)');
+  g.addColorStop(0.55, 'rgba(4,10,24,0.08)');
+  g.addColorStop(1, 'rgba(2,6,16,0.72)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 256, 256);
   return canvas;
@@ -316,12 +395,31 @@ function addCanvas(scene, key, canvas) {
   return tex;
 }
 
+function addSheet(scene, key, canvas) {
+  if (scene.textures.exists(key)) scene.textures.remove(key);
+  const tex = scene.textures.addSpriteSheet(key, canvas, {
+    frameWidth: 32,
+    frameHeight: 32,
+  });
+  tex.setFilter(Phaser.Textures.FilterMode.NEAREST);
+  return tex;
+}
+
 export function buildWorldTextures(scene) {
   addCanvas(scene, 'tiles', paintTileset());
   // 2×2 placeholder. Static boxes stretch this to the size they need.
   addCanvas(scene, 'blank', makeCanvas(2, 2).canvas);
   addCanvas(scene, 'feet', makeCanvas(FEET.w, FEET.h).canvas);
+  addCanvas(scene, 'feet-small', makeCanvas(12, 8).canvas);
   addCanvas(scene, 'vignette', paintVignette());
+  addCanvas(scene, 'lamp-glow', paintLampGlow());
+  // Stand-in sheets. A team with WARRIOR_CONFIG path set is loaded in preload instead.
+  if (!WARRIOR_CONFIG.teams.greek.path) {
+    addSheet(scene, WARRIOR_CONFIG.teams.greek.key, paintWarriorSheet(TEAMS.greek));
+  }
+  if (!WARRIOR_CONFIG.teams.trojan.path) {
+    addSheet(scene, WARRIOR_CONFIG.teams.trojan.key, paintWarriorSheet(TEAMS.trojan));
+  }
   for (const [id, paint] of Object.entries(PROP_ART)) {
     addCanvas(scene, id, paint());
   }
